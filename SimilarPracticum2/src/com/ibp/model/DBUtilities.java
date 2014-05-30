@@ -18,27 +18,6 @@ public class DBUtilities {
 	Connection sqlConnection;
 	DBManager db;
 
-	public static void main(String[] args) {
-		//		graph=new GraphDatabaseFactory().newEmbeddedDatabase("C:\\Users\\Nikhitha\\Desktop\\GraphDB\\DB-graph\\neo4j-community-2.1.0-M01");
-		DBUtilities util=new DBUtilities();
-		//		util.deleteNode("1");
-		//System.out.println("From Core\n"+util.getMessageFromCoreNode("Nikhitha", "258", "www.rahul.com"));
-		//util.addMessagesToCoreNode("Rahul", "25", "www.rahul.com", "message2");
-		//util.addMessagesToCoreNode("Rahul", "25", "www.rahul.com", "message1");
-		//util.addMessagesToCoreNode("Rahul", "25", "www.rahul.com", "message3");
-		System.out.println("From Core\n"+util.getMessageFromCoreNode("Rahul", "25", "www.rahul.com"));
-		//util.addMessageToURLNode("nikhitha", "245", "www.nikhithagoodgirl24.com", "REDDYNEW");
-		//System.out.println("--"+util.getMessageFromURLNode("nikhitha", "245", "www.nikhithagoodgirl24.com"));
-		/*System.out.print("Messages:");
-		System.out.println("--"+util.getMessageFromURLNode("Rahul", "1", "www.test19.com"));
-		System.out.println("msg2=======================================");
-		util.addMessageToURLNode("Rahul", "1", "www.test19.com", "msitmsg2");
-		System.out.print("Messages:");
-		System.out.println("--"+util.getMessageFromURLNode("Rahul", "1", "www.test11.com"));*/
-		//	util.deleteUser("245");
-		System.out.println("--"+util.getMessageFromURLNode("abc", "111", "www.abc.com"));
-	}
-
 	public DBUtilities(GraphDatabaseService graph,Connection con){
 		DBUtilities.graph=graph;
 		sqlConnection=con;
@@ -50,21 +29,31 @@ public class DBUtilities {
 		db= new DBManager(graph,sqlConnection);
 	}
 
-	public int getOnlineUsersForCoreNode(Node coreNode){
+	public int getOnlineUsersCountForCoreNode(Node coreNode){
 		int users;
 		try ( Transaction tx = graph.beginTx() ){
 			 users=(int) coreNode.getProperty("onlineUsers");
 			 tx.success();
 		}
 		System.out.println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-		System.out.println("users : "+users);
+		System.out.println("online users : "+users);
+		return users;
+	}
+	
+	public int getTotalUsersCountForCoreNode(Node coreNode){
+		int users;
+		try ( Transaction tx = graph.beginTx() ){
+			 users=(int) coreNode.getProperty("totalUsers");
+			 tx.success();
+		}
+		System.out.println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+		System.out.println("total users : "+users);
 		return users;
 	}
 
-	public void deActivateUser(String uId,String uname,String url)// should be verified by konda rahul
+	public void deActivateUser(String uId,String url)// should be verified by konda rahul
 	{
 		UserNode userNode=new UserNode();
-		userNode.setName(uname);
 		userNode.setUserID(uId);
 		userNode.setHasUrl(url);
 		Node userNodeInDB=db.getUserNode(userNode); 
@@ -82,7 +71,7 @@ public class DBUtilities {
 	}
 
 	@SuppressWarnings("unused")
-	public int getOnlineUsersURL(Node urlNodeInDB){
+	public int getOnlineUsersCountURL(Node urlNodeInDB){
 
 		int n=0;
 		try(Transaction tx=graph.beginTx()){
@@ -94,10 +83,6 @@ public class DBUtilities {
 			System.out.println("url node id : "+urlNodeInDB.getId());
 			ResourceIterable<Node> ncol= graph.findNodesByLabelAndProperty(label,"connectedToUrl",urlNodeInDB.getId());
 			//		ResourceIterable<Node> ncol= graph.findNodesByLabelAndProperty(label,"status","true");
-
-			/////////////////////////
-			//		Node usernode=graph.getNodeById()
-			//////////////////////////
 			ResourceIterator<Node> nodeIterator=ncol.iterator();
 
 			while(nodeIterator.hasNext()){
@@ -117,11 +102,10 @@ public class DBUtilities {
 		return n;
 	}
 
-	public String getMessageFromCoreNode(String uname,String uId,String url)
+	public String getMessageFromCoreNode(String uId,String url)
 	{
 		Node msgNodeInDB=null;
 		UserNode userNode=new UserNode();
-		userNode.setName(uname);
 		userNode.setUserID(uId);
 		userNode.setHasUrl(url);
 		Node userNodeInDB=db.getUserNode(userNode);//get usernode returns the node from the db or null
@@ -130,23 +114,23 @@ public class DBUtilities {
 
 		Node urlNodeInDB=db.getUrlNode(urlNode);
 		Node coreNodeInDB;
-		if(urlNodeInDB==null)
-		{
-
+		if(urlNodeInDB==null){
 			System.out.println("----------------------------new url node");
 
 			String msgs="";
 			urlNode.setConnectedToCoreNodeId(url,graph, sqlConnection);      //+++++++++++++++calls meher method internally
 			MessageNodeCore mnc= new MessageNodeCore("");
 			long connectedToMessageNodeUrlId=db.createMessageNodeCore(mnc).getId();
-
 			urlNode.setConnectedToMessageNodeUrlId(connectedToMessageNodeUrlId);
 
 			urlNodeInDB=db.createUrlNode(urlNode);
 
+			String dob=setUserNode(userNode,uId,urlNodeInDB.getId(),System.currentTimeMillis(),"true");
+			
 			userNode.setConnectedToUrlId(urlNodeInDB.getId());
 			userNode.setLastSeenMessageTime(System.currentTimeMillis());
 			userNode.setStatus("true");
+			
 			updateUserInterests(userNode,urlNode);
 			
 			userNodeInDB=db.createUserNode(userNode);
@@ -177,7 +161,7 @@ public class DBUtilities {
 			}*/
 
 
-			int n=getOnlineUsersForCoreNode(coreNodeInDB);
+			int n=getOnlineUsersCountForCoreNode(coreNodeInDB);
 			messagesToSend=messagesToSend+"[(:-,;,-:)]"+n;
 			System.out.println("message to send:"+messagesToSend);
 			return messagesToSend;
@@ -214,9 +198,10 @@ public class DBUtilities {
 
 				System.out.println("msgs:"+msgs);
 
-				int users=(int) coreNodeInDB.getProperty("onlineUsers");
-				coreNodeInDB.setProperty("onlineUsers",users+1);
-				
+				int onlineUsers=(int) coreNodeInDB.getProperty("onlineUsers");
+				coreNodeInDB.setProperty("onlineUsers",onlineUsers+1);
+				int totalUsers=(int) coreNodeInDB.getProperty("totalUsers");				
+				coreNodeInDB.setProperty("totalUsers", totalUsers+1);
 				trans1.success();
 			}
 			String[] msgWithTime=msgs.split(",");
@@ -228,7 +213,7 @@ public class DBUtilities {
 				userNodeInDB.setProperty("lastSeenMessageTime", System.currentTimeMillis());
 				trans3.success();
 			}
-			int n=getOnlineUsersForCoreNode(coreNodeInDB);
+			int n=getOnlineUsersCountForCoreNode(coreNodeInDB);
 			messagesToSend=messagesToSend+"[(:-,;,-:)]"+n;
 			System.out.println("message to send:"+messagesToSend);
 			return messagesToSend;
@@ -244,7 +229,10 @@ public class DBUtilities {
 
 			long coreNodeId=(long)urlNodeInDB.getProperty("connectedToCoreNode");
 			coreNodeInDB=graph.getNodeById(coreNodeId);
-
+//
+			int totalUsers=(int) coreNodeInDB.getProperty("totalUsers");				
+			coreNodeInDB.setProperty("totalUsers", totalUsers+1);
+			
 			String status=(String) userNodeInDB.getProperty("status");
 			if(status.equalsIgnoreCase("false")){
 				userNodeInDB.setProperty(status, "true");
@@ -285,25 +273,30 @@ public class DBUtilities {
 			trans3.success();
 		}
 
-		int n=getOnlineUsersForCoreNode(coreNodeInDB);
+		int n=getOnlineUsersCountForCoreNode(coreNodeInDB);
 		messagesToSend=messagesToSend+"[(:-,;,-:)]"+n;
 		System.out.println("message to send:"+messagesToSend);
 		return messagesToSend;
 
 	}
+
+	private String setUserNode(String uId, long id, long currentTimeMillis,	String string) {
+		
+		return null;
+	}
+
 	private void updateUserInterests(UserNode userNode, UrlNode urlNode) {
 		
 		
 	}
 
-	public String getMessageFromURLNode(String uname,String uId,String url)
+	public String getMessageFromURLNode(String uId,String url)
 	{
 
-		System.out.println("inside dbutilites uname:"+uname+",uid:"+uId+",url:"+url);
+		System.out.println("inside dbutilites ,uid:"+uId+",url:"+url);
 
 		Node msgNodeInDB=null;
 		UserNode userNode=new UserNode();
-		userNode.setName(uname);
 		userNode.setUserID(uId);
 		userNode.setHasUrl(url);
 		Node userNodeInDB=db.getUserNode(userNode);
@@ -357,7 +350,7 @@ public class DBUtilities {
 				userNodeInDB.setProperty("lastSeenMessageTime", System.currentTimeMillis());
 				trans3.success();
 			}
-			int n=getOnlineUsersURL(urlNodeInDB);
+			int n=getOnlineUsersCountURL(urlNodeInDB);
 			messagesToSend=messagesToSend+"[(:-,;,-:)]"+n;
 			System.out.println("message to send:"+messagesToSend);
 			return messagesToSend;
@@ -397,7 +390,7 @@ public class DBUtilities {
 				if(messageTime<lastSeenTime)
 					break;
 				messagesToSend+=msgTime[0]+"[(:-,-:)]"+msgTime[1]+"[(:-,-:)]"+msgTime[2]+"[(:-,-:)]"+msgTime[3]+"[(:-,-:)]"+msgTime[4]+"[(:-;-:)]";
-
+/
 
 			}
 
@@ -409,17 +402,16 @@ public class DBUtilities {
 			userNodeInDB.setProperty("lastSeenMessageTime", System.currentTimeMillis());
 			trans3.success();
 		}
-		int n=getOnlineUsersURL(urlNodeInDB);
+		int n=getOnlineUsersCountURL(urlNodeInDB);
 		messagesToSend=messagesToSend+"[(:-,;,-:)]"+n;
 		System.out.println("message to send:"+messagesToSend);
 		return messagesToSend;
 
 	}
 
-	public void addMessageToURLNode(String uname,String uId,String url,String message){
+	public void addMessageToURLNode(String uId,String url,String message){
 
 		UserNode userNode=new UserNode();
-		userNode.setName(uname);
 		userNode.setUserID(uId);
 		userNode.setHasUrl(url);
 		Node userNodeInDB=db.getUserNode(userNode);  //checks for user existence
@@ -452,8 +444,6 @@ public class DBUtilities {
 			userNodeInDB=db.createUserNode(userNode);
 
 			db.createLink(userNodeInDB, urlNodeInDB, RelTypes.toUrlNode);
-
-
 			return ;
 		}
 		if(userNodeInDB == null){
@@ -467,8 +457,7 @@ public class DBUtilities {
 			Transaction trans=graph.beginTx();
 			Node msgNodeInDB=null;
 
-			try(Transaction tx=graph.beginTx())
-			{
+			try(Transaction tx=graph.beginTx()){
 				long msgNodeId=(long)urlNodeInDB.getProperty("connectedToMessageNodeUrl");
 				msgNodeInDB=graph.getNodeById(msgNodeId);
 				String msgs=(String) msgNodeInDB.getProperty("value");
@@ -478,9 +467,6 @@ public class DBUtilities {
 				msgs=(String) msgNodeInDB.getProperty("value");
 				tx.success();
 			}
-
-
-
 			return ;
 
 		}
@@ -505,42 +491,27 @@ public class DBUtilities {
 			String msgs1=(String)msgNodeInDB.getProperty("value");
 			//System.out.println("inserted as:"+msgs1);
 		}
-		//		try(Transaction tx1=graph.beginTx())
-		//		{
-		//			msgNodeInDB.setProperty("value", message+"::"+System.currentTimeMillis()+"::"+uId+"::"+uname+","+msgs);
-		//			tx1.success();
-		//		}
-
-
 		System.out.println("message added");
 
 	}
 
-	public void addMessagesToCoreNode(String uname,String uId,String url,String message){
+	public void addMessagesToCoreNode(String uId,String url,String message){
 		UserNode userNode=new UserNode();
-		userNode.setName(uname);
 		userNode.setUserID(uId);
 		userNode.setHasUrl(url);
 		Node userNodeInDB=db.getUserNode(userNode);
-
 		UrlNode urlNode=new UrlNode(url);
 		Node urlNodeInDB=db.getUrlNode(urlNode);
 		if(urlNodeInDB==null){
 			System.out.println("In addMsg  url not exists");
-
 			urlNode.setConnectedToCoreNodeId(url,graph, sqlConnection);//calls meher method internally
 			urlNodeInDB=db.getUrlNode(urlNode);
 			urlNodeInDB=db.createUrlNode(urlNode);
-
 			userNode.setConnectedToUrlId(urlNodeInDB.getId());
 			userNode.setLastSeenMessageTime((long) 0);
 			userNode.setStatus("true");
-
 			userNodeInDB=db.createUserNode(userNode);
-
 			db.createLink(userNodeInDB, urlNodeInDB, RelTypes.toUrlNode);
-
-
 			try(Transaction trans2=graph.beginTx())
 			{
 				System.out.println(urlNodeInDB);
@@ -558,7 +529,6 @@ public class DBUtilities {
 		}
 		if(userNodeInDB == null){
 			System.out.println("In addMsg user not exists");
-
 			userNode.setConnectedToUrlId(urlNodeInDB.getId());
 			userNode.setLastSeenMessageTime((long) 0);
 			userNode.setStatus("true");
@@ -614,4 +584,24 @@ public class DBUtilities {
 		}
 	}
 
+	public static void main(String[] args) {
+		//		graph=new GraphDatabaseFactory().newEmbeddedDatabase("C:\\Users\\Nikhitha\\Desktop\\GraphDB\\DB-graph\\neo4j-community-2.1.0-M01");
+		DBUtilities util=new DBUtilities();
+		//		util.deleteNode("1");
+		//System.out.println("From Core\n"+util.getMessageFromCoreNode("Nikhitha", "258", "www.rahul.com"));
+		//util.addMessagesToCoreNode("Rahul", "25", "www.rahul.com", "message2");
+		//util.addMessagesToCoreNode("Rahul", "25", "www.rahul.com", "message1");
+		//util.addMessagesToCoreNode("Rahul", "25", "www.rahul.com", "message3");
+		System.out.println("From Core\n"+util.getMessageFromCoreNode( "25", "www.rahul.com"));
+		//util.addMessageToURLNode("nikhitha", "245", "www.nikhithagoodgirl24.com", "REDDYNEW");
+		//System.out.println("--"+util.getMessageFromURLNode("nikhitha", "245", "www.nikhithagoodgirl24.com"));
+		/*System.out.print("Messages:");
+		System.out.println("--"+util.getMessageFromURLNode("Rahul", "1", "www.test19.com"));
+		System.out.println("msg2=======================================");
+		util.addMessageToURLNode("Rahul", "1", "www.test19.com", "msitmsg2");
+		System.out.print("Messages:");
+		System.out.println("--"+util.getMessageFromURLNode("Rahul", "1", "www.test11.com"));*/
+		//	util.deleteUser("245");
+		System.out.println("--"+util.getMessageFromURLNode( "111", "www.abc.com"));
+	}
 }

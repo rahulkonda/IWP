@@ -9,15 +9,11 @@ public class UserNode
 	private long connectedToUrlId;
 	private String hasUrl;
 	private String status;   //added to know whether the user is active or not
+	private String dob;
+	private String imageUrl;
+	private String gender;
 	
-	public String getStatus() {
-		return status;
-	}
-
-	public void setStatus(String status) {
-		this.status = status;
-	}
-
+	
 	public UserNode(String userID, String name, long connectedToUrlId) {
 		super();
 		setUserID(userID);
@@ -27,6 +23,40 @@ public class UserNode
 
 	public UserNode() {
 
+	}
+	
+	
+	
+	public String getDob() {
+		return dob;
+	}
+
+	public void setDob(String dob) {
+		this.dob = dob;
+	}
+
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
+	}
+
+	public String getGender() {
+		return gender;
+	}
+
+	public void setGender(String gender) {
+		this.gender = gender;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
 	}
 	
 	public String getUserID() {

@@ -146,7 +146,7 @@ public class DBManager {
 		{
 			Label label = DynamicLabel.label( "LabelCoreNode" );
 			newNode=graph.createNode(label);
-			//			newNode.setProperty("label",category);
+			newNode.setProperty("totalUsers", 0);
 			newNode.setProperty("onlineUsers",0);
 			newNode.setProperty("value",cn.getValue());
 			newNode.setProperty("connectedMessageNodeCore", cn.getConnectedMessageNodeCoreId());
@@ -210,6 +210,10 @@ public class DBManager {
 			newNode.setProperty("hasUrl", un.getHasUrl());
 			newNode.setProperty("connectedToUrl", un.getConnectedToUrlId());
 			newNode.setProperty("status",un.getStatus());
+			newNode.setProperty("dob", un.getDob());	
+			newNode.setProperty("imageUrl", un.getImageUrl());
+			newNode.setProperty("gender", un.getGender());
+			
 			System.out.println("created user node with id"+newNode);
 			tx.success();
 		}
@@ -309,8 +313,6 @@ public class DBManager {
 		try(Transaction tx=graph.beginTx()){
 			System.out.println("node1:"+node1);
 			System.out.println("node2:"+node2);
-
-			//		RelationshipType type=RelTypes.hasUrl;
 			Relationship r = node1.createRelationshipTo(node2, type);
 			tx.success();
 			System.out.println("link created");
